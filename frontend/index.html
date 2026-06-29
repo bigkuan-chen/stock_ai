@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>政策產業情報平台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">US Policy Industry Intelligence</p>
+        <h1>政策產業動向與潛力公司</h1>
+      </div>
+      <button id="refreshBtn" type="button">重新分析</button>
+    </header>
+
+    <main>
+      <section class="summary-grid" aria-label="summary">
+        <div class="metric">
+          <span>政策文件</span>
+          <strong id="policyCount">0</strong>
+        </div>
+        <div class="metric">
+          <span>追蹤產業</span>
+          <strong id="industryCount">0</strong>
+        </div>
+        <div class="metric">
+          <span>候選公司</span>
+          <strong id="companyCount">0</strong>
+        </div>
+        <div class="metric">
+          <span>更新日期</span>
+          <strong id="updatedAt">-</strong>
+        </div>
+      </section>
+
+      <section class="layout">
+        <div class="panel wide">
+          <div class="panel-title">
+            <h2>產業政策動能</h2>
+            <span>White House + Federal Register</span>
+          </div>
+          <div id="industryList" class="stack"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">
+            <h2>潛力公司排行</h2>
+            <span>政策連動分數</span>
+          </div>
+          <div id="companyList" class="stack compact"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h2>最新政策證據</h2>
+          <span>用來支撐評分的原始文件</span>
+        </div>
+        <div id="policyList" class="policy-grid"></div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
