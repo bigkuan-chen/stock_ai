@@ -7,7 +7,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .config import FRONTEND_DIR
+from .config import (
+    DEFAULT_LOOKBACK_DAYS,
+    FRONTEND_DIR,
+    RECENT_POLICIES_LIMIT,
+    TOP_COMPANIES_LIMIT,
+    TOP_INDUSTRIES_LIMIT,
+)
 from .pipeline import get_or_create_state, run_analysis
 
 
@@ -18,15 +24,15 @@ def response_payload(path: str, query: dict[str, list[str]]) -> tuple[int, dict]
     if path == "/api/dashboard":
         return 200, {
             "updated_at": state.get("updated_at"),
-            "lookback_days": state.get("lookback_days"),
+            "lookback_days": DEFAULT_LOOKBACK_DAYS,
             "summary": {
                 "policies": len(state.get("policies", [])),
                 "industries": len(state.get("industries", [])),
                 "companies": len(state.get("companies", [])),
             },
-            "top_industries": state.get("industries", [])[:5],
-            "top_companies": state.get("companies", [])[:8],
-            "recent_policies": state.get("policies", [])[:10],
+            "top_industries": state.get("industries", [])[:TOP_INDUSTRIES_LIMIT],
+            "top_companies": state.get("companies", [])[:TOP_COMPANIES_LIMIT],
+            "recent_policies": state.get("policies", [])[:RECENT_POLICIES_LIMIT],
         }
     if path == "/api/policies":
         return 200, {"results": state.get("policies", [])}
@@ -35,7 +41,7 @@ def response_payload(path: str, query: dict[str, list[str]]) -> tuple[int, dict]
     if path == "/api/companies/ranking":
         return 200, {"results": state.get("companies", [])}
     if path == "/api/run-analysis":
-        lookback = int(query.get("lookback_days", ["30"])[0])
+        lookback = int(query.get("lookback_days", [str(DEFAULT_LOOKBACK_DAYS)])[0])
         offline = query.get("offline", ["false"])[0].lower() == "true"
         return 200, run_analysis(lookback_days=lookback, offline=offline)
     return 404, {"error": "not_found"}

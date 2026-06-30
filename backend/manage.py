@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from app.api import serve
+from app.config import DEFAULT_LOOKBACK_DAYS
 from app.pipeline import run_analysis
 from app.storage import DATA_FILE
 
@@ -14,7 +15,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
 
     analyze = sub.add_parser("analyze", help="crawl and calculate policy opportunity scores")
-    analyze.add_argument("--lookback-days", type=int, default=30)
+    analyze.add_argument("--lookback-days", type=int, default=DEFAULT_LOOKBACK_DAYS)
     analyze.add_argument("--offline", action="store_true", help="use bundled samples instead of live crawling")
 
     server = sub.add_parser("serve", help="start local API and dashboard server")

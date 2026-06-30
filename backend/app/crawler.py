@@ -65,11 +65,27 @@ def stable_id(*parts: str) -> str:
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:24]
 
 
+def federal_register_document(item: dict[str, Any], fallback_date: str) -> PolicyDocument:
+    agencies = [a.get("name", "") for a in item.get("agencies", []) if a.get("name")]
+    title = item.get("title") or "Untitled Federal Register document"
+    abstract = item.get("abstract") or ""
+    return PolicyDocument(
+        id=stable_id("federal_register", item.get("document_number", title)),
+        source="Federal Register",
+        title=title,
+        url=item.get("html_url") or item.get("pdf_url") or "",
+        published_date=item.get("publication_date") or fallback_date,
+        document_type=item.get("type") or "document",
+        summary=abstract,
+        content=" ".join([title, abstract, item.get("citation", ""), " ".join(agencies)]),
+        agencies=agencies,
+    )
+
+
 def crawl_federal_register(lookback_days: int) -> list[PolicyDocument]:
     start = (date.today() - timedelta(days=lookback_days)).isoformat()
     end = date.today().isoformat()
     params = {
-        "per_page": "50",
         "order": "newest",
         "conditions[publication_date][gte]": start,
         "conditions[publication_date][lte]": end,
@@ -77,25 +93,11 @@ def crawl_federal_register(lookback_days: int) -> list[PolicyDocument]:
     }
     query = urllib.parse.urlencode(params, doseq=True)
     url = f"{FEDERAL_REGISTER_API_BASE_URL}/documents.json?{query}"
-    data = json.loads(fetch_text(url))
     docs: list[PolicyDocument] = []
-    for item in data.get("results", []):
-        agencies = [a.get("name", "") for a in item.get("agencies", []) if a.get("name")]
-        title = item.get("title") or "Untitled Federal Register document"
-        abstract = item.get("abstract") or ""
-        docs.append(
-            PolicyDocument(
-                id=stable_id("federal_register", item.get("document_number", title)),
-                source="Federal Register",
-                title=title,
-                url=item.get("html_url") or item.get("pdf_url") or "",
-                published_date=item.get("publication_date") or end,
-                document_type=item.get("type") or "document",
-                summary=abstract,
-                content=" ".join([title, abstract, item.get("citation", ""), " ".join(agencies)]),
-                agencies=agencies,
-            )
-        )
+    while url:
+        data = json.loads(fetch_text(url))
+        docs.extend(federal_register_document(item, end) for item in data.get("results", []))
+        url = data.get("next_page_url")
     return docs
 
 
@@ -113,7 +115,7 @@ def crawl_white_house(lookback_days: int) -> list[PolicyDocument]:
                 urls.append(full_url.split("#")[0])
 
     docs: list[PolicyDocument] = []
-    for url in sorted(set(urls))[:20]:
+    for url in sorted(set(urls)):
         try:
             html = fetch_text(url)
         except Exception:

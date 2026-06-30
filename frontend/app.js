@@ -1,6 +1,6 @@
 const api = {
   dashboard: "/api/dashboard",
-  run: "/api/run-analysis?lookback_days=30",
+  run: "/api/run-analysis",
 };
 
 const fmt = new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 1 });
