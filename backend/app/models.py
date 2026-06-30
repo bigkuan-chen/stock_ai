@@ -48,6 +48,8 @@ class CompanyScore:
     rating: str
     thesis: str
     evidence: list[str]
+    sector: str = "N/A"
+    stock_industry: str = "N/A"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

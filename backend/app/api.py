@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import threading
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -15,6 +17,68 @@ from .config import (
     TOP_INDUSTRIES_LIMIT,
 )
 from .pipeline import get_or_create_state, run_analysis
+
+
+ANALYSIS_LOCK = threading.Lock()
+ANALYSIS_JOB: dict[str, object] = {
+    "status": "idle",
+    "started_at": None,
+    "finished_at": None,
+    "error": None,
+}
+
+
+def _analysis_worker(lookback_days: int, offline: bool) -> None:
+    try:
+        result = run_analysis(lookback_days=lookback_days, offline=offline)
+    except Exception as exc:
+        with ANALYSIS_LOCK:
+            ANALYSIS_JOB.update({
+                "status": "failed",
+                "finished_at": time.time(),
+                "error": str(exc),
+            })
+        return
+
+    with ANALYSIS_LOCK:
+        ANALYSIS_JOB.update({
+            "status": "completed",
+            "finished_at": time.time(),
+            "error": None,
+            "summary": {
+                "policies": len(result.get("policies", [])),
+                "industries": len(result.get("industries", [])),
+                "companies": len(result.get("companies", [])),
+            },
+        })
+
+
+def start_analysis(lookback_days: int, offline: bool) -> tuple[int, dict]:
+    with ANALYSIS_LOCK:
+        if ANALYSIS_JOB.get("status") == "running":
+            return 202, dict(ANALYSIS_JOB)
+        ANALYSIS_JOB.clear()
+        ANALYSIS_JOB.update({
+            "status": "running",
+            "started_at": time.time(),
+            "finished_at": None,
+            "error": None,
+            "lookback_days": lookback_days,
+            "offline": offline,
+        })
+
+    thread = threading.Thread(
+        target=_analysis_worker,
+        args=(lookback_days, offline),
+        daemon=True,
+    )
+    thread.start()
+    return 202, dict(ANALYSIS_JOB)
+
+
+def analysis_status() -> dict:
+    with ANALYSIS_LOCK:
+        return dict(ANALYSIS_JOB)
 
 
 def response_payload(path: str, query: dict[str, list[str]]) -> tuple[int, dict]:
@@ -40,10 +104,12 @@ def response_payload(path: str, query: dict[str, list[str]]) -> tuple[int, dict]
         return 200, {"results": state.get("industries", [])}
     if path == "/api/companies/ranking":
         return 200, {"results": state.get("companies", [])}
+    if path == "/api/analysis-status":
+        return 200, analysis_status()
     if path == "/api/run-analysis":
         lookback = int(query.get("lookback_days", [str(DEFAULT_LOOKBACK_DAYS)])[0])
         offline = query.get("offline", ["false"])[0].lower() == "true"
-        return 200, run_analysis(lookback_days=lookback, offline=offline)
+        return start_analysis(lookback_days=lookback, offline=offline)
     return 404, {"error": "not_found"}
 
 

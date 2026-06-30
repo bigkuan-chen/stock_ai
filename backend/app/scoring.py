@@ -4,7 +4,9 @@ import math
 import re
 from collections import defaultdict
 
-from .knowledge_base import COMPANIES, INDUSTRIES, POSITIVE_POLICY_TERMS, RISK_POLICY_TERMS
+from .config import YFINANCE_LOOKUP_LIMIT
+from .knowledge_base import INDUSTRIES, POSITIVE_POLICY_TERMS, RISK_POLICY_TERMS
+from .market_data import lookup_stock_profile
 from .models import CompanyScore, IndustryScore, PolicyDocument
 
 
@@ -17,6 +19,10 @@ def clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     return max(low, min(high, value))
 
 
+def policy_text(policy: PolicyDocument) -> str:
+    return f"{policy.title} {policy.summary} {policy.content}"
+
+
 def score_industries(policies: list[PolicyDocument]) -> list[IndustryScore]:
     results: list[IndustryScore] = []
     for industry in INDUSTRIES:
@@ -25,7 +31,7 @@ def score_industries(policies: list[PolicyDocument]) -> list[IndustryScore]:
         risk = 0
         keyword_hits = 0
         for policy in policies:
-            text = f"{policy.title} {policy.summary} {policy.content}"
+            text = policy_text(policy)
             hits = count_terms(text, industry["keywords"])
             if hits:
                 evidence.append(policy)
@@ -64,58 +70,152 @@ def score_industries(policies: list[PolicyDocument]) -> list[IndustryScore]:
 
 def rating(score: float) -> str:
     if score >= 85:
-        return "高度潛力"
+        return "strong"
     if score >= 70:
-        return "值得追蹤"
+        return "positive"
     if score >= 55:
-        return "觀察名單"
-    return "政策連動較弱"
+        return "watch"
+    return "low"
+
+
+def generated_ticker(name: str) -> str:
+    words = re.findall(r"[A-Za-z0-9]+", name.upper())
+    if not words:
+        return "N/A"
+    if len(words) == 1:
+        return words[0][:8]
+    return "".join(word[0] for word in words)[:8]
+
+
+def extract_company_mentions(text: str) -> list[str]:
+    suffixes = (
+        "Inc",
+        "Incorporated",
+        "Corporation",
+        "Corp",
+        "Company",
+        "Co",
+        "LLC",
+        "Ltd",
+        "Limited",
+        "PLC",
+        "Holdings",
+        "Group",
+        "Technologies",
+        "Systems",
+        "Energy",
+        "Aerospace",
+        "Pharmaceuticals",
+        "Biotech",
+        "Semiconductor",
+        "Manufacturing",
+    )
+    suffix_pattern = "|".join(re.escape(suffix) for suffix in suffixes)
+    pattern = re.compile(
+        rf"\b([A-Z][A-Za-z0-9&.,'-]*(?:\s+[A-Z][A-Za-z0-9&.,'-]*){{0,6}}\s+"
+        rf"(?:{suffix_pattern})\.?)\b"
+    )
+    names: list[str] = []
+    seen: set[str] = set()
+    for match in pattern.finditer(text):
+        name = re.sub(r"\s+", " ", match.group(1)).strip(" ,.;:")
+        key = name.lower()
+        if key not in seen:
+            names.append(name)
+            seen.add(key)
+    return names
+
+
+def policies_by_industry(policies: list[PolicyDocument]) -> dict[str, list[PolicyDocument]]:
+    grouped: dict[str, list[PolicyDocument]] = defaultdict(list)
+    for policy in policies:
+        text = policy_text(policy)
+        for industry in INDUSTRIES:
+            if count_terms(text, industry["keywords"]):
+                grouped[industry["code"]].append(policy)
+    return grouped
 
 
 def score_companies(
     policies: list[PolicyDocument],
     industries: list[IndustryScore],
 ) -> list[CompanyScore]:
-    industry_map = {item.code: item for item in industries}
-    policy_text_by_industry: dict[str, list[PolicyDocument]] = defaultdict(list)
-    for policy in policies:
-        text = f"{policy.title} {policy.summary} {policy.content}"
-        for industry in INDUSTRIES:
-            if count_terms(text, industry["keywords"]):
-                policy_text_by_industry[industry["code"]].append(policy)
+    grouped = policies_by_industry(policies)
+    candidates: list[tuple[float, str, IndustryScore, list[PolicyDocument]]] = []
 
-    results: list[CompanyScore] = []
-    for company in COMPANIES:
-        industry = industry_map[company["industry_code"]]
-        docs = policy_text_by_industry.get(company["industry_code"], [])
-        company_hits = 0
-        evidence: list[str] = []
+    for industry in industries:
+        docs = grouped.get(industry.code, [])
+        company_evidence: dict[str, list[PolicyDocument]] = defaultdict(list)
         for policy in docs:
-            text = f"{policy.title} {policy.summary} {policy.content}"
-            hits = count_terms(text, company["keywords"])
-            company_hits += hits
-            if hits and len(evidence) < 3:
-                evidence.append(policy.title)
+            for company_name in extract_company_mentions(policy_text(policy)):
+                company_evidence[company_name].append(policy)
 
-        relevance = clamp(45 + company_hits * 9)
-        policy_strength = industry.score
-        breadth_bonus = clamp(math.log1p(len(docs)) * 12, 0, 20)
-        score = clamp(policy_strength * 0.52 + relevance * 0.32 + breadth_bonus - company["risk"] * 0.45)
+        for company_name, evidence_docs in company_evidence.items():
+            company_hits = len(evidence_docs)
+            relevance = clamp(40 + company_hits * 12)
+            breadth_bonus = clamp(math.log1p(company_hits) * 12, 0, 20)
+            score = clamp(industry.score * 0.6 + relevance * 0.3 + breadth_bonus)
+            candidates.append((score, company_name, industry, evidence_docs))
+
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    results: list[CompanyScore] = []
+    for index, (score, company_name, industry, evidence_docs) in enumerate(candidates):
+        if index < YFINANCE_LOOKUP_LIMIT:
+            stock = lookup_stock_profile(company_name)
+            ticker = stock.ticker if stock.ticker != "N/A" else generated_ticker(company_name)
+            display_name = stock.name
+            exchange = stock.exchange
+            sector = stock.sector
+            stock_industry = stock.industry
+        else:
+            ticker = generated_ticker(company_name)
+            display_name = company_name
+            exchange = "N/A"
+            sector = "N/A"
+            stock_industry = "N/A"
         thesis = (
-            f"{company['name']} 與「{industry.name}」政策主題高度相關；"
-            f"目前政策動能 {industry.momentum:.0f}，相關政策 {industry.policy_count} 件。"
+            f"{display_name} was generated from policy mentions in the "
+            f"{industry.name} industry. It appeared in {len(evidence_docs)} related policy item(s)."
         )
         results.append(
             CompanyScore(
-                ticker=company["ticker"],
-                name=company["name"],
-                exchange=company["exchange"],
-                industry_code=company["industry_code"],
+                ticker=ticker,
+                name=display_name,
+                exchange=exchange,
+                industry_code=industry.code,
                 industry_name=industry.name,
                 score=round(score, 2),
                 rating=rating(score),
                 thesis=thesis,
-                evidence=evidence or industry.key_drivers[:2],
+                evidence=[policy.title for policy in evidence_docs[:3]],
+                sector=sector,
+                stock_industry=stock_industry,
+            )
+        )
+
+    if results:
+        return results
+
+    for industry in industries:
+        docs = grouped.get(industry.code, [])
+        breadth_bonus = clamp(math.log1p(len(docs)) * 12, 0, 20)
+        score = clamp(industry.score * 0.65 + breadth_bonus)
+        results.append(
+            CompanyScore(
+                ticker=generated_ticker(industry.code),
+                name=f"{industry.name} opportunity",
+                exchange="N/A",
+                industry_code=industry.code,
+                industry_name=industry.name,
+                score=round(score, 2),
+                rating=rating(score),
+                thesis=(
+                    f"Generated industry opportunity for {industry.name}. "
+                    "No explicit company mention was detected in related policies."
+                ),
+                evidence=industry.key_drivers[:3],
+                sector="N/A",
+                stock_industry="N/A",
             )
         )
     return sorted(results, key=lambda item: item.score, reverse=True)

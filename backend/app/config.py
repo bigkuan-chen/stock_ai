@@ -50,6 +50,14 @@ def _env_json_list(name: str) -> list[Any]:
     return parsed
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        os.environ[name] = "true" if default else "false"
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 _load_dotenv(ROOT_DIR / ".env")
 
 WHITE_HOUSE_BASE_URL = os.getenv("WHITE_HOUSE_BASE_URL", "https://www.whitehouse.gov")
@@ -66,3 +74,6 @@ TOP_COMPANIES_LIMIT = _env_int("TOP_COMPANIES_LIMIT", 8)
 RECENT_POLICIES_LIMIT = _env_int("RECENT_POLICIES_LIMIT", 10)
 REQUEST_TIMEOUT_SECONDS = _env_int("CRAWL_REQUEST_TIMEOUT_SECONDS", 20)
 USER_AGENT = os.getenv("CRAWL_USER_AGENT", "PolicyResearchBot/1.0")
+YFINANCE_LOOKUP_ENABLED = _env_bool("YFINANCE_LOOKUP_ENABLED", True)
+YFINANCE_LOOKUP_LIMIT = _env_int("YFINANCE_LOOKUP_LIMIT", 30)
+YFINANCE_REQUEST_TIMEOUT_SECONDS = _env_int("YFINANCE_REQUEST_TIMEOUT_SECONDS", 5)
