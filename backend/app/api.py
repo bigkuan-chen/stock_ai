@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .config import (
     DEFAULT_LOOKBACK_DAYS,
+    ROOT_DIR,
     FRONTEND_DIR,
     RECENT_POLICIES_LIMIT,
     TOP_COMPANIES_LIMIT,
@@ -84,7 +85,12 @@ def analysis_status() -> dict:
 def response_payload(path: str, query: dict[str, list[str]]) -> tuple[int, dict]:
     state = get_or_create_state()
     if path == "/api/health":
-        return 200, {"status": "ok", "updated_at": state.get("updated_at")}
+        return 200, {
+            "status": "ok",
+            "updated_at": state.get("updated_at"),
+            "lookback_days": DEFAULT_LOOKBACK_DAYS,
+            "root_dir": str(ROOT_DIR),
+        }
     if path == "/api/dashboard":
         return 200, {
             "updated_at": state.get("updated_at"),

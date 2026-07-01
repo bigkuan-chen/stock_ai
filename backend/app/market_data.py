@@ -32,9 +32,6 @@ def _best_quote(quotes: list[dict[str, Any]]) -> dict[str, Any] | None:
     for quote in quotes:
         if quote.get("quoteType") == "EQUITY" and quote.get("symbol"):
             return quote
-    for quote in quotes:
-        if quote.get("symbol"):
-            return quote
     return None
 
 

@@ -50,6 +50,7 @@ class CompanyScore:
     evidence: list[str]
     sector: str = "N/A"
     stock_industry: str = "N/A"
+    related_industries: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

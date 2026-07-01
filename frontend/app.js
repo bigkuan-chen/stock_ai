@@ -43,7 +43,10 @@ function companyMeta(item) {
   const stockMeta = [item.exchange, item.sector, item.stock_industry]
     .filter((value) => value && value !== "N/A")
     .join(" | ");
-  return stockMeta || item.industry_name;
+  const related = Array.isArray(item.related_industries) && item.related_industries.length
+    ? `Policy industries: ${item.related_industries.join(", ")}`
+    : `Policy industry: ${item.industry_name}`;
+  return stockMeta ? `${stockMeta} | ${related}` : related;
 }
 
 function companyItem(item) {

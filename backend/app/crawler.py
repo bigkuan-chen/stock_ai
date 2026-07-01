@@ -11,6 +11,7 @@ from typing import Any
 
 from .config import (
     FEDERAL_REGISTER_API_BASE_URL,
+    FEDERAL_REGISTER_DOCUMENT_TYPES,
     REQUEST_TIMEOUT_SECONDS,
     USER_AGENT,
     WHITE_HOUSE_BASE_URL,
@@ -83,21 +84,32 @@ def federal_register_document(item: dict[str, Any], fallback_date: str) -> Polic
 
 
 def crawl_federal_register(lookback_days: int) -> list[PolicyDocument]:
-    start = (date.today() - timedelta(days=lookback_days)).isoformat()
-    end = date.today().isoformat()
-    params = {
-        "order": "newest",
-        "conditions[publication_date][gte]": start,
-        "conditions[publication_date][lte]": end,
-        "conditions[type][]": ["RULE", "PRORULE", "NOTICE", "PRESDOCU"],
-    }
-    query = urllib.parse.urlencode(params, doseq=True)
-    url = f"{FEDERAL_REGISTER_API_BASE_URL}/documents.json?{query}"
+    start = date.today() - timedelta(days=lookback_days)
+    end = date.today()
     docs: list[PolicyDocument] = []
-    while url:
-        data = json.loads(fetch_text(url))
-        docs.extend(federal_register_document(item, end) for item in data.get("results", []))
-        url = data.get("next_page_url")
+    seen: set[str] = set()
+
+    current = end
+    while current >= start:
+        current_iso = current.isoformat()
+        params = {
+            "order": "newest",
+            "per_page": 1000,
+            "conditions[publication_date][is]": current_iso,
+            "conditions[type][]": FEDERAL_REGISTER_DOCUMENT_TYPES,
+        }
+        query = urllib.parse.urlencode(params, doseq=True)
+        url = f"{FEDERAL_REGISTER_API_BASE_URL}/documents.json?{query}"
+        while url:
+            data = json.loads(fetch_text(url))
+            for item in data.get("results", []):
+                doc = federal_register_document(item, current_iso)
+                if doc.id in seen:
+                    continue
+                seen.add(doc.id)
+                docs.append(doc)
+            url = data.get("next_page_url")
+        current -= timedelta(days=1)
     return docs
 
 

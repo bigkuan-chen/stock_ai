@@ -136,6 +136,35 @@ def policies_by_industry(policies: list[PolicyDocument]) -> dict[str, list[Polic
     return grouped
 
 
+def merge_company_results(results: list[CompanyScore]) -> list[CompanyScore]:
+    merged: dict[str, CompanyScore] = {}
+    related: dict[str, set[str]] = defaultdict(set)
+
+    for item in results:
+        existing = merged.get(item.ticker)
+        related[item.ticker].add(item.industry_name)
+        if existing is None:
+            merged[item.ticker] = item
+            continue
+
+        existing.evidence = list(dict.fromkeys([*existing.evidence, *item.evidence]))[:5]
+        if item.score > existing.score:
+            existing.score = item.score
+            existing.rating = item.rating
+            existing.industry_code = item.industry_code
+            existing.industry_name = item.industry_name
+
+    for ticker, item in merged.items():
+        item.related_industries = sorted(related[ticker])
+        industries = ", ".join(item.related_industries)
+        item.thesis = (
+            f"{item.name} was generated from policy mentions. "
+            f"Related policy industries: {industries}."
+        )
+
+    return sorted(merged.values(), key=lambda item: item.score, reverse=True)
+
+
 def score_companies(
     policies: list[PolicyDocument],
     industries: list[IndustryScore],
@@ -160,62 +189,30 @@ def score_companies(
     candidates.sort(key=lambda item: item[0], reverse=True)
     results: list[CompanyScore] = []
     for index, (score, company_name, industry, evidence_docs) in enumerate(candidates):
-        if index < YFINANCE_LOOKUP_LIMIT:
-            stock = lookup_stock_profile(company_name)
-            ticker = stock.ticker if stock.ticker != "N/A" else generated_ticker(company_name)
-            display_name = stock.name
-            exchange = stock.exchange
-            sector = stock.sector
-            stock_industry = stock.industry
-        else:
-            ticker = generated_ticker(company_name)
-            display_name = company_name
-            exchange = "N/A"
-            sector = "N/A"
-            stock_industry = "N/A"
+        if YFINANCE_LOOKUP_LIMIT > 0 and index >= YFINANCE_LOOKUP_LIMIT:
+            break
+        stock = lookup_stock_profile(company_name)
+        if stock.ticker == "N/A":
+            continue
         thesis = (
-            f"{display_name} was generated from policy mentions in the "
+            f"{stock.name} was generated from policy mentions in the "
             f"{industry.name} industry. It appeared in {len(evidence_docs)} related policy item(s)."
         )
         results.append(
             CompanyScore(
-                ticker=ticker,
-                name=display_name,
-                exchange=exchange,
+                ticker=stock.ticker,
+                name=stock.name,
+                exchange=stock.exchange,
                 industry_code=industry.code,
                 industry_name=industry.name,
                 score=round(score, 2),
                 rating=rating(score),
                 thesis=thesis,
                 evidence=[policy.title for policy in evidence_docs[:3]],
-                sector=sector,
-                stock_industry=stock_industry,
+                sector=stock.sector,
+                stock_industry=stock.industry,
+                related_industries=[industry.name],
             )
         )
 
-    if results:
-        return results
-
-    for industry in industries:
-        docs = grouped.get(industry.code, [])
-        breadth_bonus = clamp(math.log1p(len(docs)) * 12, 0, 20)
-        score = clamp(industry.score * 0.65 + breadth_bonus)
-        results.append(
-            CompanyScore(
-                ticker=generated_ticker(industry.code),
-                name=f"{industry.name} opportunity",
-                exchange="N/A",
-                industry_code=industry.code,
-                industry_name=industry.name,
-                score=round(score, 2),
-                rating=rating(score),
-                thesis=(
-                    f"Generated industry opportunity for {industry.name}. "
-                    "No explicit company mention was detected in related policies."
-                ),
-                evidence=industry.key_drivers[:3],
-                sector="N/A",
-                stock_industry="N/A",
-            )
-        )
-    return sorted(results, key=lambda item: item.score, reverse=True)
+    return merge_company_results(results)

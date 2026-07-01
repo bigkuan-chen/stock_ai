@@ -19,7 +19,7 @@ def _load_dotenv(path: Path) -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+        os.environ[key.strip()] = value.strip().strip('"').strip("'")
 
 
 def _env_int(name: str, default: int) -> int:
@@ -58,6 +58,18 @@ def _env_bool(name: str, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _env_csv(name: str, default: list[str]) -> list[str]:
+    value = os.getenv(name)
+    if value is None:
+        os.environ[name] = ",".join(default)
+        return default
+    items = [item.strip() for item in value.split(",") if item.strip()]
+    if not items:
+        os.environ[name] = ",".join(default)
+        return default
+    return items
+
+
 _load_dotenv(ROOT_DIR / ".env")
 
 WHITE_HOUSE_BASE_URL = os.getenv("WHITE_HOUSE_BASE_URL", "https://www.whitehouse.gov")
@@ -65,6 +77,7 @@ FEDERAL_REGISTER_API_BASE_URL = os.getenv(
     "FEDERAL_REGISTER_API_BASE_URL",
     "https://www.federalregister.gov/api/v1",
 )
+FEDERAL_REGISTER_DOCUMENT_TYPES = _env_csv("FEDERAL_REGISTER_DOCUMENT_TYPES", ["RULE", "PRESDOCU"])
 DEFAULT_LOOKBACK_DAYS = _env_int("CRAWL_LOOKBACK_DAYS", 30)
 DEFAULT_POLICIES = _env_json_list("DEFAULT_POLICIES")
 DEFAULT_INDUSTRIES = _env_json_list("DEFAULT_INDUSTRIES")
