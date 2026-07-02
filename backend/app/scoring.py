@@ -10,6 +10,33 @@ from .market_data import lookup_stock_profile
 from .models import CompanyScore, IndustryScore, PolicyDocument
 
 
+POLICY_STOCK_FALLBACKS = {
+    "semiconductors": ("Technology", "Semiconductors"),
+    "clean_energy": ("Utilities", "Clean Energy & Grid Infrastructure"),
+    "defense_aerospace": ("Industrials", "Aerospace & Defense"),
+    "ai_cloud": ("Technology", "AI, Cloud & Cybersecurity"),
+    "healthcare_biotech": ("Healthcare", "Healthcare & Biotechnology"),
+    "infrastructure": ("Industrials", "Infrastructure & Engineering"),
+}
+
+
+def stock_classification_with_fallback(
+    sector: str,
+    stock_industry: str,
+    industry_code: str,
+    industry_name: str,
+) -> tuple[str, str]:
+    fallback_sector, fallback_industry = POLICY_STOCK_FALLBACKS.get(
+        industry_code,
+        ("N/A", industry_name),
+    )
+    if not sector or sector == "N/A":
+        sector = fallback_sector
+    if not stock_industry or stock_industry == "N/A":
+        stock_industry = fallback_industry
+    return sector, stock_industry
+
+
 def count_terms(text: str, terms: list[str]) -> int:
     lower = text.lower()
     return sum(len(re.findall(rf"\b{re.escape(term.lower())}\b", lower)) for term in terms)
@@ -198,6 +225,12 @@ def score_companies(
             f"{stock.name} was generated from policy mentions in the "
             f"{industry.name} industry. It appeared in {len(evidence_docs)} related policy item(s)."
         )
+        sector, stock_industry = stock_classification_with_fallback(
+            stock.sector,
+            stock.industry,
+            industry.code,
+            industry.name,
+        )
         results.append(
             CompanyScore(
                 ticker=stock.ticker,
@@ -209,8 +242,8 @@ def score_companies(
                 rating=rating(score),
                 thesis=thesis,
                 evidence=[policy.title for policy in evidence_docs[:3]],
-                sector=stock.sector,
-                stock_industry=stock.industry,
+                sector=sector,
+                stock_industry=stock_industry,
                 related_industries=[industry.name],
             )
         )

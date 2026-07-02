@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .config import DEFAULT_LOOKBACK_DAYS
 from .crawler import crawl_all
+from .database import save_analysis_to_db
 from .models import today_iso
 from .scoring import score_companies, score_industries
 from .storage import load_state, save_state
@@ -19,6 +20,7 @@ def run_analysis(lookback_days: int = DEFAULT_LOOKBACK_DAYS, offline: bool = Fal
         "companies": [item.to_dict() for item in companies],
     }
     save_state(state)
+    state["database"] = save_analysis_to_db(state)
     return state
 
 

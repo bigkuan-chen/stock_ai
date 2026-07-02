@@ -9,6 +9,8 @@ from typing import Any
 ROOT_DIR = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = ROOT_DIR / "frontend"
 DATA_DIR = ROOT_DIR / "backend" / "data"
+DB_DIR = ROOT_DIR / "db"
+DB_FILE = DB_DIR / "stockai.db"
 
 
 def _load_dotenv(path: Path) -> None:

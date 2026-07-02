@@ -10,6 +10,16 @@ from typing import Any
 from .config import DATA_DIR, DEFAULT_COMPANIES, DEFAULT_INDUSTRIES, DEFAULT_LOOKBACK_DAYS, DEFAULT_POLICIES
 
 
+POLICY_STOCK_FALLBACKS = {
+    "semiconductors": ("Technology", "Semiconductors"),
+    "clean_energy": ("Utilities", "Clean Energy & Grid Infrastructure"),
+    "defense_aerospace": ("Industrials", "Aerospace & Defense"),
+    "ai_cloud": ("Technology", "AI, Cloud & Cybersecurity"),
+    "healthcare_biotech": ("Healthcare", "Healthcare & Biotechnology"),
+    "infrastructure": ("Industrials", "Infrastructure & Engineering"),
+}
+
+
 DATA_FILE = DATA_DIR / "state.json"
 
 
@@ -85,6 +95,15 @@ def _merge_company_items(companies: list[dict[str, Any]]) -> list[dict[str, Any]
 def normalize_state(state: dict[str, Any]) -> dict[str, Any]:
     if isinstance(state.get("companies"), list):
         state["companies"] = _merge_company_items(state["companies"])
+        for company in state["companies"]:
+            fallback_sector, fallback_industry = POLICY_STOCK_FALLBACKS.get(
+                company.get("industry_code"),
+                ("N/A", company.get("industry_name") or "N/A"),
+            )
+            if not company.get("sector") or company.get("sector") == "N/A":
+                company["sector"] = fallback_sector
+            if not company.get("stock_industry") or company.get("stock_industry") == "N/A":
+                company["stock_industry"] = fallback_industry
     return state
 
 
