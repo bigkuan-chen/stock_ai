@@ -11,11 +11,26 @@ function text(value) {
   return value === undefined || value === null || value === "" ? "-" : String(value);
 }
 
+function lookbackInput() {
+  return document.querySelector("#lookbackDaysInput");
+}
+
+function currentLookbackDays() {
+  const value = Number.parseInt(lookbackInput().value, 10);
+  if (!Number.isFinite(value) || value < 1) {
+    throw new Error("Lookback days 必須是大於 0 的整數");
+  }
+  return value;
+}
+
 function setSummary(data) {
   document.querySelector("#policyCount").textContent = data.summary.policies;
   document.querySelector("#industryCount").textContent = data.summary.industries;
   document.querySelector("#companyCount").textContent = data.summary.companies;
   document.querySelector("#updatedAt").textContent = text(data.updated_at);
+  if (!lookbackInput().value && data.lookback_days) {
+    lookbackInput().value = data.lookback_days;
+  }
 }
 
 function setStatus(message) {
@@ -94,7 +109,7 @@ async function waitForAnalysis() {
     if (!response.ok) throw new Error("analysis status request failed");
     const job = await response.json();
     if (job.status === "running") {
-      setStatus("分析中，請稍候...");
+      setStatus(`分析中，lookback days: ${job.lookback_days || currentLookbackDays()}`);
       continue;
     }
     if (job.status === "failed") {
@@ -106,11 +121,15 @@ async function waitForAnalysis() {
 
 async function rerunAnalysis() {
   const button = document.querySelector("#refreshBtn");
+  const input = lookbackInput();
+  const lookbackDays = currentLookbackDays();
   button.disabled = true;
+  input.disabled = true;
   button.textContent = "分析中...";
-  setStatus("已開始背景分析");
+  setStatus(`已開始背景分析，lookback days: ${lookbackDays}`);
   try {
-    const response = await fetch(api.run, { method: "POST" });
+    const params = new URLSearchParams({ lookback_days: String(lookbackDays) });
+    const response = await fetch(`${api.run}?${params.toString()}`, { method: "POST" });
     if (!response.ok && response.status !== 202) throw new Error("analysis request failed");
     await waitForAnalysis();
     await loadDashboard();
@@ -119,6 +138,7 @@ async function rerunAnalysis() {
     setStatus(error.message);
   } finally {
     button.disabled = false;
+    input.disabled = false;
     button.textContent = "重新分析";
   }
 }

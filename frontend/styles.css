@@ -70,6 +70,38 @@ button:disabled {
   cursor: wait;
 }
 
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.field input {
+  width: 128px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px 10px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+}
+
+.field input:disabled {
+  background: #f1f3f7;
+  cursor: wait;
+}
+
 main {
   width: min(1240px, calc(100% - 32px));
   margin: 24px auto 48px;
@@ -212,10 +244,17 @@ main {
 
 @media (max-width: 900px) {
   .topbar,
+  .toolbar,
   .panel-title,
   .row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .field,
+  .field input,
+  button {
+    width: 100%;
   }
 
   .summary-grid,

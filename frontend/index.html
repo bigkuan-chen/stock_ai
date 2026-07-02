@@ -10,16 +10,22 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">US Policy Industry Intelligence</p>
-        <h1>政策產業與股票機會儀表板</h1>
+        <h1>政策產業與公司機會雷達</h1>
         <p id="analysisStatus" class="meta">待命</p>
       </div>
-      <button id="refreshBtn" type="button">重新分析</button>
+      <div class="toolbar">
+        <label class="field" for="lookbackDaysInput">
+          <span>Lookback days</span>
+          <input id="lookbackDaysInput" type="number" min="1" step="1" inputmode="numeric" />
+        </label>
+        <button id="refreshBtn" type="button">重新分析</button>
+      </div>
     </header>
 
     <main>
       <section class="summary-grid" aria-label="summary">
         <div class="metric">
-          <span>政策數</span>
+          <span>政策筆數</span>
           <strong id="policyCount">0</strong>
         </div>
         <div class="metric">
@@ -31,7 +37,7 @@
           <strong id="companyCount">0</strong>
         </div>
         <div class="metric">
-          <span>更新日</span>
+          <span>更新日期</span>
           <strong id="updatedAt">-</strong>
         </div>
       </section>
@@ -47,7 +53,7 @@
 
         <div class="panel">
           <div class="panel-title">
-            <h2>公司候選</h2>
+            <h2>公司排名</h2>
             <span>Policy mentions + yfinance</span>
           </div>
           <div id="companyList" class="stack compact"></div>
@@ -57,7 +63,7 @@
       <section class="panel">
         <div class="panel-title">
           <h2>近期政策</h2>
-          <span>依資料來源與日期排序</span>
+          <span>依資料來源與發布日期排序</span>
         </div>
         <div id="policyList" class="policy-grid"></div>
       </section>
