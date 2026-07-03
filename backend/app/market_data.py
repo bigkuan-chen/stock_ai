@@ -5,6 +5,7 @@ from functools import lru_cache
 from typing import Any
 
 from .config import YFINANCE_LOOKUP_ENABLED, YFINANCE_REQUEST_TIMEOUT_SECONDS
+from .stock_filters import is_us_listed_equity
 
 
 @dataclass(frozen=True)
@@ -30,7 +31,16 @@ def _import_yfinance() -> Any | None:
 
 def _best_quote(quotes: list[dict[str, Any]]) -> dict[str, Any] | None:
     for quote in quotes:
-        if quote.get("quoteType") == "EQUITY" and quote.get("symbol"):
+        symbol = quote.get("symbol")
+        if (
+            quote.get("quoteType") == "EQUITY"
+            and symbol
+            and is_us_listed_equity(
+                symbol,
+                quote.get("exchange", ""),
+                quote.get("exchDisp", ""),
+            )
+        ):
             return quote
     return None
 

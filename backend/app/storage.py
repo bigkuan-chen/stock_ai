@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import DATA_DIR, DEFAULT_COMPANIES, DEFAULT_INDUSTRIES, DEFAULT_LOOKBACK_DAYS, DEFAULT_POLICIES
+from .stock_filters import is_us_listed_equity
 
 
 POLICY_STOCK_FALLBACKS = {
@@ -95,6 +96,10 @@ def _merge_company_items(companies: list[dict[str, Any]]) -> list[dict[str, Any]
 def normalize_state(state: dict[str, Any]) -> dict[str, Any]:
     if isinstance(state.get("companies"), list):
         state["companies"] = _merge_company_items(state["companies"])
+        state["companies"] = [
+            company for company in state["companies"]
+            if is_us_listed_equity(company.get("ticker", ""), company.get("exchange", ""), company.get("exchange", ""))
+        ]
         for company in state["companies"]:
             fallback_sector, fallback_industry = POLICY_STOCK_FALLBACKS.get(
                 company.get("industry_code"),
