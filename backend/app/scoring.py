@@ -7,16 +7,18 @@ from collections import defaultdict
 from .config import YFINANCE_LOOKUP_LIMIT
 from .knowledge_base import INDUSTRIES, POSITIVE_POLICY_TERMS, RISK_POLICY_TERMS
 from .market_data import lookup_stock_profile
-from .models import CompanyScore, IndustryScore, PolicyDocument
+from .schemas import CompanyScore, IndustryScore, PolicyDocument
 
 
 POLICY_STOCK_FALLBACKS = {
+    "defense_aerospace_military": ("Industrials", "Aerospace & Defense"),
+    "ai_datacenter_power": ("Technology", "AI, Data Centers & Power Infrastructure"),
     "semiconductors": ("Technology", "Semiconductors"),
-    "clean_energy": ("Utilities", "Clean Energy & Grid Infrastructure"),
-    "defense_aerospace": ("Industrials", "Aerospace & Defense"),
-    "ai_cloud": ("Technology", "AI, Cloud & Cybersecurity"),
-    "healthcare_biotech": ("Healthcare", "Healthcare & Biotechnology"),
-    "infrastructure": ("Industrials", "Infrastructure & Engineering"),
+    "critical_minerals_rare_earth": ("Basic Materials", "Other Industrial Metals & Minerals"),
+    "nuclear_uranium_smr": ("Utilities", "Nuclear Utilities"),
+    "traditional_energy_lng_oil": ("Energy", "Oil & Gas Integration"),
+    "ev_battery_charging": ("Consumer Cyclical", "Auto Manufacturers"),
+    "pharma_reshoring": ("Healthcare", "Drug Manufacturers"),
 }
 
 
@@ -219,12 +221,49 @@ def score_companies(
         if YFINANCE_LOOKUP_LIMIT > 0 and index >= YFINANCE_LOOKUP_LIMIT:
             break
         stock = lookup_stock_profile(company_name)
+        subsidiary_trigger = None
+
+        if stock.ticker == "N/A":
+            from .models import SubsidiaryMapping
+            from .market_data import find_parent_company_via_wikidata
+
+            normalized_name = company_name.lower().strip()
+            db_mapping = SubsidiaryMapping.objects.filter(subsidiary_name=normalized_name).first()
+
+            if db_mapping:
+                parent_name = db_mapping.parent_company_name
+                parent_stock = lookup_stock_profile(parent_name)
+                if parent_stock.ticker != "N/A":
+                    stock = parent_stock
+                    subsidiary_trigger = company_name
+            else:
+                parent_name = find_parent_company_via_wikidata(company_name)
+                if parent_name:
+                    parent_stock = lookup_stock_profile(parent_name)
+                    if parent_stock.ticker != "N/A":
+                        stock = parent_stock
+                        subsidiary_trigger = company_name
+                        try:
+                            SubsidiaryMapping.objects.create(
+                                subsidiary_name=normalized_name,
+                                parent_company_name=parent_name
+                            )
+                        except Exception:
+                            pass
+
         if stock.ticker == "N/A":
             continue
-        thesis = (
-            f"{stock.name} was generated from policy mentions in the "
-            f"{industry.name} industry. It appeared in {len(evidence_docs)} related policy item(s)."
-        )
+
+        if subsidiary_trigger:
+            thesis = (
+                f"{stock.name} (via subsidiary {subsidiary_trigger}) was generated from policy mentions in the "
+                f"{industry.name} industry. It appeared in {len(evidence_docs)} related policy item(s)."
+            )
+        else:
+            thesis = (
+                f"{stock.name} was generated from policy mentions in the "
+                f"{industry.name} industry. It appeared in {len(evidence_docs)} related policy item(s)."
+            )
         sector, stock_industry = stock_classification_with_fallback(
             stock.sector,
             stock.industry,

@@ -16,7 +16,7 @@ from .config import (
     USER_AGENT,
     WHITE_HOUSE_BASE_URL,
 )
-from .models import PolicyDocument
+from .schemas import PolicyDocument
 
 
 class TextExtractor(HTMLParser):
