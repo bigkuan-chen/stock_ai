@@ -24,6 +24,8 @@ The backend uses live sources when network access is available. If crawling fail
 - `GET /api/industries/ranking`
 - `GET /api/companies/ranking`
 - `GET /api/stockcomps`
+- `GET /api/get-macro-data/` (總體經濟數據 - 自資料庫讀取)
+- `POST /api/update-macro-data/` (強制重新爬取並更新總體經濟數據庫)
 
 ### 重新分析 (Re-analysis) API 規格
 
@@ -141,6 +143,8 @@ The backend uses live sources when network access is available. If crawling fail
 - **健康檢查**: `http://35.234.20.97/api/health`
 - **觸發分析**: `http://35.234.20.97/api/run-analysis`
 - **分析狀態**: `http://35.234.20.97/api/analysis-status`
+- **總體經濟數據**: `http://35.234.20.97/api/get-macro-data/`
+- **更新經濟數據**: `http://35.234.20.97/api/update-macro-data/`
 
 ## 總體經濟數據看板 (Macroeconomic Data Dashboard)
 
