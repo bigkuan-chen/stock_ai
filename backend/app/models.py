@@ -99,3 +99,23 @@ class SubsidiaryMapping(models.Model):
     def __str__(self):
         return f"{self.subsidiary_name} -> {self.parent_company_name}"
 
+
+class MacroObservation(models.Model):
+    django_id = models.AutoField(primary_key=True, db_column='django_id')
+    category = models.CharField(max_length=50, db_index=True)
+    metric_name = models.CharField(max_length=100, db_index=True)
+    series_id = models.CharField(max_length=50)
+    source = models.CharField(max_length=100)
+    date = models.CharField(max_length=50)  # Standard date string 'YYYY-MM-DD'
+    value = models.FloatField()
+    fetched_at = models.CharField(max_length=50, default='')
+
+    class Meta:
+        db_table = 'macro_observations'
+        verbose_name_plural = 'Macro Observations'
+        unique_together = ('series_id', 'date')
+
+    def __str__(self):
+        return f"{self.metric_name} ({self.date}): {self.value}"
+
+

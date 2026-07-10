@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>總體經濟數據看板 - US Policy Industry Intelligence</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">US Policy Industry Intelligence</p>
+        <h1>總體經濟數據看板</h1>
+        <p class="meta">聯邦準備銀行 FRED API 經濟指標</p>
+      </div>
+      <div class="toolbar">
+        <a href="/" class="btn-secondary" style="text-decoration: none; padding: 10px 16px; display: inline-block;">返回首頁</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <h2>FRED 總體經濟指標</h2>
+            <span style="color: var(--muted); font-size: 13px;">提供成長 (Growth)、就業 (Employment)、通膨 (Inflation) 之歷史數據監控</span>
+          </div>
+          <button id="updateMacroBtn" type="button" class="btn-secondary">手動更新最新數據</button>
+        </div>
+        <div id="macroContainer">
+          <p class="summary" id="macroStatus" style="font-weight: 700; color: var(--accent-2);">載入中...</p>
+          <div id="macroDataGrid" class="macro-grid" style="display: none;">
+            <!-- Rendered dynamically by app.js -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

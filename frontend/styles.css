@@ -263,3 +263,95 @@ main {
     grid-template-columns: 1fr;
   }
 }
+
+/* Macroeconomic Dashboard Styles */
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.macro-category {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.macro-category-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--accent);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
+
+.macro-indicator-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.macro-indicator-item:last-child {
+  border-bottom: none;
+}
+
+.macro-indicator-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.macro-indicator-name {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.macro-indicator-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.macro-indicator-value-container {
+  text-align: right;
+}
+
+.macro-indicator-value {
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.macro-indicator-date {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.btn-secondary {
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: #eef7f5;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.macro-panel-margin {
+  margin-bottom: 20px;
+}
+
